@@ -158,10 +158,15 @@ func (tb *Torbox) doPostForm(endpoint string, formData map[string]string, result
 	if err != nil {
 		return nil, err
 	}
-	defer request.DrainAndClose(resp.Body)
+	body, readErr := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if readErr != nil {
+		return resp, readErr
+	}
+	resp.Body = io.NopCloser(bytes.NewReader(body))
 
-	if result != nil && resp.StatusCode >= 200 && resp.StatusCode < 300 && resp.ContentLength != 0 {
-		if err := json.ConfigDefault.NewDecoder(resp.Body).Decode(result); err != nil {
+	if result != nil && resp.StatusCode >= 200 && resp.StatusCode < 300 && len(body) != 0 {
+		if err := json.ConfigDefault.NewDecoder(bytes.NewReader(body)).Decode(result); err != nil {
 			return resp, err
 		}
 	}
@@ -248,7 +253,16 @@ func (tb *Torbox) SubmitMagnet(torrent *types.Torrent) (*types.Torrent, error) {
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("torbox API error: Status: %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		const maxErrorBody = 1024
+		if len(body) > maxErrorBody {
+			body = body[:maxErrorBody]
+		}
+		detail := strings.TrimSpace(string(body))
+		if detail == "" {
+			return nil, fmt.Errorf("torbox API error: status %d (empty response)", resp.StatusCode)
+		}
+		return nil, fmt.Errorf("torbox API error: status %d: %s", resp.StatusCode, detail)
 	}
 	if data.Data == nil {
 		return nil, fmt.Errorf("error adding torrent")
