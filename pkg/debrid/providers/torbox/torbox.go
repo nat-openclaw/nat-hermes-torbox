@@ -251,6 +251,16 @@ func (tb *Torbox) SubmitMagnet(torrent *types.Torrent) (*types.Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
+	if resp.StatusCode == http.StatusBadRequest && !torrent.DownloadUncached {
+		// TorBox returns 400 when a release is not cached. Retry once through
+		// the uncached path instead of losing the request at the queue boundary.
+		_ = resp.Body.Close()
+		delete(formData, "add_only_if_cached")
+		resp, err = tb.doPostForm("/api/torrents/createtorrent", formData, &data)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)
