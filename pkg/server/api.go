@@ -313,6 +313,7 @@ func (s *Server) handleGetTorrents(w http.ResponseWriter, r *http.Request) {
 	allTorrents := s.manager.Queue().ListFilter("", config.ProtocolAll, "", nil, "added_on", false)
 	for _, t := range allTorrents {
 		t.Sanitize()
+		t.Observability = storage.BuildDownloadObservability(t)
 	}
 
 	// Apply filters

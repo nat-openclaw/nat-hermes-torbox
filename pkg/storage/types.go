@@ -93,6 +93,33 @@ type Entry struct {
 	LastError     string     `msgpack:"last_error,omitempty" json:"last_error,omitempty"`           // Last error message
 	ErrorCount    int        `msgpack:"error_count,omitempty" json:"error_count,omitempty"`         // Number of errors
 	LastErrorTime *time.Time `msgpack:"last_error_time,omitempty" json:"last_error_time,omitempty"` // Last error time
+	Observability *DownloadObservability `msgpack:"-" json:"observability,omitempty"`
+}
+
+type DownloadObservability struct {
+	PipelineStage string `json:"pipeline_stage"`
+	Provider string `json:"provider,omitempty"`
+	ProviderID string `json:"provider_id,omitempty"`
+	ProviderState string `json:"provider_state,omitempty"`
+	CacheMode string `json:"cache_mode"`
+	AddedAt time.Time `json:"added_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	ImportedAt *time.Time `json:"imported_at,omitempty"`
+	LastErrorTime *time.Time `json:"last_error_time,omitempty"`
+	MountPath string `json:"mount_path,omitempty"`
+	SavePath string `json:"save_path,omitempty"`
+	ContentPath string `json:"content_path,omitempty"`
+	LastError string `json:"last_error,omitempty"`
+}
+
+func BuildDownloadObservability(e *Entry) *DownloadObservability {
+	stage := "queued"
+	if e.LastError != "" || e.State == EntryStateError { stage = "error" } else if e.ImportedAt != nil { stage = "imported" } else if e.IsComplete || e.State == EntryStatePausedUP { stage = "ready" } else if e.IsDownloading || e.State == EntryStateDownloading { stage = "downloading" }
+	o := &DownloadObservability{PipelineStage: stage, CacheMode: "cached", AddedAt: e.AddedOn, UpdatedAt: e.UpdatedAt, CompletedAt: e.CompletedAt, ImportedAt: e.ImportedAt, LastErrorTime: e.LastErrorTime, MountPath: e.MountPath, SavePath: e.SavePath, ContentPath: e.ContentPath, LastError: e.LastError}
+	if e.DownloadUncached { o.CacheMode = "uncached" }
+	if p := e.GetActiveProvider(); p != nil { o.Provider = p.Provider; o.ProviderID = p.ID; o.ProviderState = string(p.Status) }
+	return o
 }
 
 func (e *Entry) IsTorrent() bool {

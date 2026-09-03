@@ -315,6 +315,9 @@ class TorrentDashboard {
                     <td>
                         ${this.renderStateBadge(torrent.state)}
                     </td>
+                    <td>${this.renderPipeline(torrent.observability)}</td>
+                    <td>${this.renderProviderDetails(torrent.observability)}</td>
+                    <td class="max-w-xs">${this.renderPathDetails(torrent.observability)}</td>
                     <td>
                         <button class="btn btn-ghost btn-xs text-error"
                                 title="Delete Torrent"
@@ -372,6 +375,23 @@ class TorrentDashboard {
             text: protocol || 'Unknown'
         };
         return `<span class="badge ${p.class} badge-sm"><i class="${p.icon} mr-1"></i>${p.text}</span>`;
+    }
+
+    renderPipeline(o) {
+        if (!o) return '-';
+        return `<div class="text-xs"><span class="badge badge-sm badge-outline">${this.escapeHtml(o.pipeline_stage || 'unknown')}</span><div class="opacity-60 mt-1">${this.escapeHtml(o.cache_mode || '')}${o.provider_state ? ` · ${this.escapeHtml(o.provider_state)}` : ''}</div></div>`;
+    }
+
+    renderProviderDetails(o) {
+        if (!o) return '-';
+        return `<div class="text-xs font-mono">${this.escapeHtml(o.provider_id || '-')}<div class="font-sans opacity-60">${this.escapeHtml(o.provider || '')}</div></div>`;
+    }
+
+    renderPathDetails(o) {
+        if (!o) return '-';
+        const path = o.content_path || o.save_path || o.mount_path || '';
+        const error = o.last_error ? `<div class="text-error truncate" title="${this.escapeAttr(o.last_error)}">${this.escapeHtml(o.last_error)}</div>` : '';
+        return `<div class="text-xs truncate" title="${this.escapeAttr(path)}">${this.escapeHtml(path || '-')}</div>${error}`;
     }
 
     renderPagination() {
